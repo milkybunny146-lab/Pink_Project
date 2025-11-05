@@ -1,0 +1,611 @@
+@{
+    ViewData["Title"] = "購物車 - 品渴茶鋪";
+    
+    // 从ViewData获取数据
+    var itemName = ViewData["ItemName"]?.ToString() ?? "圍爐奶茶";
+    var mediumPrice = ViewData["MediumPrice"]?.ToString() ?? "70";
+    var largePrice = ViewData["LargePrice"]?.ToString() ?? "90";
+    var imageName = ViewData["ImageName"]?.ToString() ?? "orginal.jpg";
+    var productInfo = ViewData["ProductInfo"] as Dictionary<string, object>;
+    
+    // 从数据库获取的产品信息
+    var productDescription = productInfo?["Description"]?.ToString() ?? "精選優質茶葉，手工調製，香醇濃郁";
+    var categoryName = productInfo?["CategoryName"]?.ToString() ?? "";
+    var isSpecial = productInfo?["IsSpecial"]?.ToString() == "True";
+    
+}
+
+<div class="cart-page">
+    <div class="cart-container">
+        <div class="cart-header">
+            <h1 class="cart-title">購物車</h1>
+            <button class="back-btn" onclick="history.back()">
+                <i class="fas fa-arrow-left"></i> 返回菜單
+            </button>
+        </div>
+        
+        <div class="cart-content">
+            <div class="product-section">
+                <div class="product-image">
+                    <img id="productImage" src="~/images/@imageName" alt="@itemName" />
+                    @if (isSpecial)
+                    {
+                        <div class="special-badge">特殊品項</div>
+                    }
+                </div>
+            </div>
+            
+            <div class="options-section">
+                <div class="product-info">
+                    <h2 id="productName">@itemName</h2>
+                    @if (!string.IsNullOrEmpty(categoryName))
+                    {
+                        <p class="product-category">@categoryName</p>
+                    }
+                    <p class="product-description">@productDescription</p>
+                </div>
+                
+                <div class="size-selection">
+                    <h3>選擇尺寸</h3>
+                    <div class="size-options">
+                        <label class="size-option">
+                            <input type="radio" name="size" value="medium" checked>
+                            <span class="size-label">Medium</span>
+                            <span class="size-price" id="mediumPrice">NT$ @mediumPrice</span>
+                        </label>
+                        <label class="size-option">
+                            <input type="radio" name="size" value="large">
+                            <span class="size-label">Large</span>
+                            <span class="size-price" id="largePrice">NT$ @largePrice</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="quantity-selection">
+                    <h3>數量</h3>
+                    <div class="quantity-controls">
+                        <button type="button" class="quantity-btn" id="decreaseBtn">-</button>
+                        <span class="quantity-display" id="quantityDisplay">1</span>
+                        <button type="button" class="quantity-btn" id="increaseBtn">+</button>
+                    </div>
+                </div>
+                
+                <div class="total-section">
+                    <div class="total-price">
+                        <span class="total-label">總計：</span>
+                        <span class="total-amount" id="totalAmount">NT$ 0</span>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button type="button" class="add-to-cart-btn" id="addToCartBtn">
+                        <i class="fas fa-shopping-cart"></i>
+                        加入購物車
+                    </button>
+                    <button type="button" class="buy-now-btn" id="buyNowBtn">
+                        <i class="fas fa-bolt"></i>
+                        立即購買
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 結帳表單區域 -->
+        <div class="checkout-section" id="checkoutSection" style="display: none;">
+            <div class="checkout-container">
+                <h2 class="checkout-title">
+                    <i class="fas fa-clipboard-list"></i>
+                    填寫訂單資訊
+                </h2>
+                
+                <form id="checkoutForm" method="post" action="/Home/CreateOrder">
+                    <!-- 隱藏欄位：訂單資訊 -->
+                    <input type="hidden" id="hiddenProductName" name="ProductName" />
+                    <input type="hidden" id="hiddenSize" name="Size" />
+                    <input type="hidden" id="hiddenQuantity" name="Quantity" />
+                    <input type="hidden" id="hiddenUnitPrice" name="UnitPrice" />
+                    <input type="hidden" id="hiddenTotalAmount" name="TotalAmount" />
+                    <input type="hidden" id="hiddenImageName" name="ImageName" />
+                    
+                    <div class="form-group">
+                        <label for="customerName">
+                            <i class="fas fa-user"></i>
+                            姓名 <span class="required">*</span>
+                        </label>
+                        <input type="text" id="customerName" name="CustomerName" class="form-control" 
+                               placeholder="請輸入您的姓名" required />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="customerPhone">
+                            <i class="fas fa-phone"></i>
+                            電話 <span class="required">*</span>
+                        </label>
+                        <input type="tel" id="customerPhone" name="CustomerPhone" class="form-control" 
+                               placeholder="例如：0912345678" required 
+                               pattern="[0-9]{10}" title="請輸入10位數字的手機號碼" />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="customerEmail">
+                            <i class="fas fa-envelope"></i>
+                            電子郵件 <span class="required">*</span>
+                        </label>
+                        <input type="email" id="customerEmail" name="CustomerEmail" class="form-control" 
+                               placeholder="例如：example@email.com" required />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="deliveryType">
+                            <i class="fas fa-truck"></i>
+                            取貨方式 <span class="required">*</span>
+                        </label>
+                        <select id="deliveryType" name="DeliveryType" class="form-control" required>
+                            <option value="">請選擇取貨方式</option>
+                            <option value="自取">自取</option>
+                            <option value="外送">外送</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="addressGroup" style="display: none;">
+                        <label for="customerAddress">
+                            <i class="fas fa-map-marker-alt"></i>
+                            外送地址 <span class="required">*</span>
+                        </label>
+                        <input type="text" id="customerAddress" name="CustomerAddress" class="form-control" 
+                               placeholder="例如：台北市信義區忠孝東路五段123號" />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="paymentMethod">
+                            <i class="fas fa-credit-card"></i>
+                            付款方式 <span class="required">*</span>
+                        </label>
+                        <select id="paymentMethod" name="PaymentMethod" class="form-control" required>
+                            <option value="">請選擇付款方式</option>
+                            <option value="現金">現金</option>
+                            <option value="信用卡">信用卡</option>
+                            <option value="行動支付">行動支付</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="notes">
+                            <i class="fas fa-comment"></i>
+                            備註
+                        </label>
+                        <textarea id="notes" name="Notes" class="form-control" rows="3" 
+                                  placeholder="有任何特殊需求嗎？例如：甜度、冰度、取餐時間等"></textarea>
+                    </div>
+                    
+                    <div class="order-summary">
+                        <h3>訂單摘要</h3>
+                        <div id="cartItemsList" style="margin-bottom: 15px;">
+                            <!-- 購物車商品列表將動態插入此處 -->
+                        </div>
+                        <div class="summary-item total">
+                            <span>總金額：</span>
+                            <span id="summaryTotal" class="total-price"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- 保留原有的隱藏欄位作為備用 -->
+                    <div style="display: none;">
+                        <span id="summaryProduct"></span>
+                        <span id="summarySize"></span>
+                        <span id="summaryQuantity"></span>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn-cancel" id="cancelCheckoutBtn">
+                            <i class="fas fa-times"></i>
+                            取消
+                        </button>
+                        <button type="submit" class="btn-submit">
+                            <i class="fas fa-check"></i>
+                            確認訂單
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+console.log('Script loaded!');
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded!');
+    
+    // 使用服务器端传递的数据
+    const itemName = '@Html.Raw(itemName)';
+    const mediumPriceStr = '@mediumPrice';
+    const largePriceStr = '@largePrice';
+    const imageName = '@imageName';
+    
+    console.log('Raw Medium Price:', mediumPriceStr);
+    console.log('Raw Large Price:', largePriceStr);
+    
+    const mediumPrice = parseInt(mediumPriceStr) || 0;
+    const largePrice = parseInt(largePriceStr) || 0;
+    
+    console.log('Product loaded:', itemName);
+    console.log('Medium Price (parsed):', mediumPrice);
+    console.log('Large Price (parsed):', largePrice);
+    
+    // 數量控制
+    let quantity = 1;
+    const quantityDisplay = document.getElementById('quantityDisplay');
+    const decreaseBtn = document.getElementById('decreaseBtn');
+    const increaseBtn = document.getElementById('increaseBtn');
+    
+    console.log('Quantity Display:', quantityDisplay);
+    console.log('Decrease Button:', decreaseBtn);
+    console.log('Increase Button:', increaseBtn);
+    
+    if (!decreaseBtn || !increaseBtn || !quantityDisplay) {
+        console.error('按鈕或顯示元素未找到！');
+        return;
+    }
+    
+    // 更新總價函數
+    function updateTotal() {
+        try {
+            const selectedSizeInput = document.querySelector('input[name="size"]:checked');
+            if (!selectedSizeInput) {
+                console.error('未找到選中的尺寸！');
+                return;
+            }
+            
+            const selectedSize = selectedSizeInput.value;
+            const price = selectedSize === 'medium' ? mediumPrice : largePrice;
+            const total = price * quantity;
+            
+            console.log('Update Total - Size:', selectedSize, 'Price:', price, 'Quantity:', quantity, 'Total:', total);
+            
+            const totalAmountElement = document.getElementById('totalAmount');
+            if (totalAmountElement) {
+                totalAmountElement.textContent = 'NT$ ' + total;
+                console.log('總金額已更新為:', total);
+            } else {
+                console.error('找不到總金額元素！');
+            }
+        } catch (error) {
+            console.error('更新總價時發生錯誤:', error);
+        }
+    }
+    
+    // 初始化總價
+    updateTotal();
+    
+    // 減少按鈕
+    decreaseBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('減少按鈕被點擊！當前數量:', quantity);
+        
+        if (quantity > 1) {
+            quantity--;
+            quantityDisplay.textContent = quantity;
+            console.log('新數量:', quantity);
+            updateTotal();
+        } else {
+            console.log('數量已經是最小值 1');
+        }
+    });
+    
+    // 增加按鈕
+    increaseBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('增加按鈕被點擊！當前數量:', quantity);
+        
+        quantity++;
+        quantityDisplay.textContent = quantity;
+        console.log('新數量:', quantity);
+        updateTotal();
+    });
+    
+    // 尺寸選擇
+    const sizeInputs = document.querySelectorAll('input[name="size"]');
+    console.log('找到尺寸選項:', sizeInputs.length);
+    
+    sizeInputs.forEach(function(input) {
+        input.addEventListener('change', function() {
+            console.log('尺寸已改變為:', input.value);
+            updateTotal();
+        });
+    });
+    
+    // ==================== 購物車功能 ====================
+    
+    // 從 LocalStorage 載入購物車
+    function loadCart() {
+        const cartData = localStorage.getItem('shoppingCart');
+        return cartData ? JSON.parse(cartData) : [];
+    }
+    
+    // 儲存購物車到 LocalStorage
+    function saveCart(cart) {
+        localStorage.setItem('shoppingCart', JSON.stringify(cart));
+    }
+    
+    // 清空購物車
+    function clearCart() {
+        localStorage.removeItem('shoppingCart');
+    }
+    
+    // 加入商品到購物車
+    function addToCart(item) {
+        let cart = loadCart();
+        
+        // 檢查是否已存在相同的商品（名稱和尺寸都相同）
+        const existingIndex = cart.findIndex(cartItem => 
+            cartItem.name === item.name && cartItem.size === item.size
+        );
+        
+        if (existingIndex > -1) {
+            // 如果已存在，增加數量
+            cart[existingIndex].quantity += item.quantity;
+        } else {
+            // 如果不存在，新增商品
+            cart.push(item);
+        }
+        
+        saveCart(cart);
+        return cart.length;
+    }
+    
+    // 計算購物車總金額
+    function getCartTotal() {
+        const cart = loadCart();
+        return cart.reduce((total, item) => total + item.total, 0);
+    }
+    
+    // 顯示購物車內容在填單表單中
+    function displayCartInCheckout() {
+        const cart = loadCart();
+        if (cart.length === 0) return;
+        
+        // 建立購物車商品列表HTML
+        let cartHtml = '<div style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">';
+        cartHtml += '<table style="width: 100%; border-collapse: collapse;">';
+        cartHtml += '<thead style="background: #f8f9fa;">';
+        cartHtml += '<tr>';
+        cartHtml += '<th style="padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6;">商品</th>';
+        cartHtml += '<th style="padding: 10px; text-align: center; border-bottom: 2px solid #dee2e6;">尺寸</th>';
+        cartHtml += '<th style="padding: 10px; text-align: center; border-bottom: 2px solid #dee2e6;">數量</th>';
+        cartHtml += '<th style="padding: 10px; text-align: right; border-bottom: 2px solid #dee2e6;">小計</th>';
+        cartHtml += '</tr>';
+        cartHtml += '</thead>';
+        cartHtml += '<tbody>';
+        
+        cart.forEach((item, index) => {
+            cartHtml += '<tr style="' + (index % 2 === 0 ? 'background: #fff;' : 'background: #f9f9f9;') + '">';
+            cartHtml += '<td style="padding: 12px; border-bottom: 1px solid #e0e0e0;">' + item.name + '</td>';
+            cartHtml += '<td style="padding: 12px; text-align: center; border-bottom: 1px solid #e0e0e0;">' + item.size + '</td>';
+            cartHtml += '<td style="padding: 12px; text-align: center; border-bottom: 1px solid #e0e0e0;">' + item.quantity + ' 杯</td>';
+            cartHtml += '<td style="padding: 12px; text-align: right; border-bottom: 1px solid #e0e0e0; font-weight: 600; color: #FF69B4;">NT$ ' + item.total + '</td>';
+            cartHtml += '</tr>';
+        });
+        
+        cartHtml += '</tbody>';
+        cartHtml += '</table>';
+        cartHtml += '</div>';
+        
+        // 將HTML插入到頁面
+        document.getElementById('cartItemsList').innerHTML = cartHtml;
+        
+        // 更新總金額
+        const total = getCartTotal();
+        document.getElementById('summaryTotal').textContent = 'NT$ ' + total;
+        
+        // 填充隱藏欄位 - 使用 JSON 格式儲存所有商品
+        document.getElementById('hiddenProductName').value = JSON.stringify(cart);
+    }
+    
+    // 獲取結帳區域元素
+    const checkoutSection = document.getElementById('checkoutSection');
+    
+    // 加入購物車 - 停留在購物車頁面
+    const addToCartBtn = document.getElementById('addToCartBtn');
+    if (addToCartBtn) {
+        addToCartBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // 獲取當前選擇的商品資訊
+            const selectedSizeInput = document.querySelector('input[name="size"]:checked');
+            if (!selectedSizeInput) {
+                alert('請選擇尺寸！');
+                return;
+            }
+            
+            const selectedSize = selectedSizeInput.value;
+            const price = selectedSize === 'medium' ? mediumPrice : largePrice;
+            const total = price * quantity;
+            const sizeText = selectedSize === 'medium' ? '中杯' : '大杯';
+            
+            // 建立商品物件
+            const item = {
+                name: itemName,
+                size: sizeText,
+                quantity: quantity,
+                price: price,
+                total: total,
+                image: imageName
+            };
+            
+            // 加入購物車
+            const cartCount = addToCart(item);
+            
+            // 顯示成功訊息
+            alert('✅ 已加入購物車！\n\n' + 
+                  '商品：' + itemName + '\n' +
+                  '尺寸：' + sizeText + '\n' +
+                  '數量：' + quantity + ' 杯\n' +
+                  '小計：NT$ ' + total + '\n\n' +
+                  '購物車目前共 ' + cartCount + ' 項商品\n\n' +
+                  '💡 想繼續選購？點擊【返回菜單】\n' +
+                  '💡 不再新增品項？點擊【立即購買】結帳');
+            
+            // 重置數量為1（方便用戶添加下一個商品）
+            quantity = 1;
+            quantityDisplay.textContent = quantity;
+            updateTotal();
+        });
+    }
+    
+    // 立即購買 - 顯示結帳表單（結帳購物車中的所有商品）
+    const buyNowBtn = document.getElementById('buyNowBtn');
+    if (buyNowBtn) {
+        buyNowBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // 檢查購物車是否有商品
+            let cart = loadCart();
+            
+            // 如果購物車為空，將當前商品加入購物車
+            if (cart.length === 0) {
+                const selectedSizeInput = document.querySelector('input[name="size"]:checked');
+                if (!selectedSizeInput) {
+                    alert('請選擇尺寸！');
+                    return;
+                }
+                
+                const selectedSize = selectedSizeInput.value;
+                const price = selectedSize === 'medium' ? mediumPrice : largePrice;
+                const total = price * quantity;
+                const sizeText = selectedSize === 'medium' ? '中杯' : '大杯';
+                
+                const item = {
+                    name: itemName,
+                    size: sizeText,
+                    quantity: quantity,
+                    price: price,
+                    total: total,
+                    image: imageName
+                };
+                
+                addToCart(item);
+                cart = loadCart();
+            }
+            
+            // 顯示購物車內容在填單表單中
+            displayCartInCheckout();
+            
+            // 填充總金額到隱藏欄位
+            const totalAmount = getCartTotal();
+            document.getElementById('hiddenTotalAmount').value = totalAmount;
+            
+            // 顯示結帳區域並滾動到該位置
+            checkoutSection.style.display = 'block';
+            checkoutSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }
+    
+    // 取消結帳按鈕
+    const cancelCheckoutBtn = document.getElementById('cancelCheckoutBtn');
+    if (cancelCheckoutBtn) {
+        cancelCheckoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            checkoutSection.style.display = 'none';
+            // 滾動回頂部
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+    
+    // 取貨方式選擇處理
+    const deliveryTypeSelect = document.getElementById('deliveryType');
+    const addressGroup = document.getElementById('addressGroup');
+    const addressInput = document.getElementById('customerAddress');
+    
+    if (deliveryTypeSelect) {
+        deliveryTypeSelect.addEventListener('change', function() {
+            const deliveryType = this.value;
+            if (deliveryType === '外送') {
+                addressGroup.style.display = 'block';
+                addressInput.setAttribute('required', 'required');
+            } else if (deliveryType === '自取') {
+                addressGroup.style.display = 'none';
+                addressInput.removeAttribute('required');
+                addressInput.value = ''; // 清空地址欄位
+            } else {
+                addressGroup.style.display = 'none';
+                addressInput.removeAttribute('required');
+            }
+        });
+    }
+    
+    // 表單提交前驗證
+    const checkoutForm = document.getElementById('checkoutForm');
+    if (checkoutForm) {
+        checkoutForm.addEventListener('submit', function(e) {
+            const customerName = document.getElementById('customerName').value.trim();
+            const customerPhone = document.getElementById('customerPhone').value.trim();
+            const customerEmail = document.getElementById('customerEmail').value.trim();
+            const deliveryType = document.getElementById('deliveryType').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            
+            if (!customerName || !customerPhone || !customerEmail || !deliveryType || !paymentMethod) {
+                alert('請填寫必填欄位！');
+                e.preventDefault();
+                return false;
+            }
+            
+            // 驗證電話格式
+            const phonePattern = /^[0-9]{10}$/;
+            if (!phonePattern.test(customerPhone)) {
+                alert('請輸入正確的10位數手機號碼！');
+                e.preventDefault();
+                return false;
+            }
+            
+            // 驗證Email格式
+            const emailPattern = /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/;
+            if (!emailPattern.test(customerEmail)) {
+                alert('請輸入正確的Email格式！');
+                e.preventDefault();
+                return false;
+            }
+            
+            // 如果選擇外送，檢查地址是否填寫
+            if (deliveryType === '外送') {
+                const address = document.getElementById('customerAddress').value.trim();
+                if (!address) {
+                    alert('請填寫外送地址！');
+                    e.preventDefault();
+                    return false;
+                }
+            }
+            
+            // 確認訂單
+            const cart = loadCart();
+            let confirmMsg = '確認送出訂單？\n\n';
+            
+            if (cart.length > 0) {
+                confirmMsg += '訂購商品：\n';
+                cart.forEach((item, index) => {
+                    confirmMsg += (index + 1) + '. ' + item.name + ' (' + item.size + ') x ' + item.quantity + ' 杯\n';
+                });
+                confirmMsg += '\n';
+            }
+            
+            confirmMsg += '取貨方式：' + deliveryType + '\n';
+            confirmMsg += '總金額：NT$ ' + document.getElementById('hiddenTotalAmount').value;
+            
+            if (!confirm(confirmMsg)) {
+                e.preventDefault();
+                return false;
+            }
+            
+            // 提交成功後清空購物車
+            clearCart();
+            
+            return true;
+        });
+    }
+    
+    console.log('所有事件監聽器已設置完成！');
+});
+</script>

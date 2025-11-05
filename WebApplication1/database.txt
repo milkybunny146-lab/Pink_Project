@@ -1,0 +1,244 @@
+-- ============================================
+-- 飲料菜單資料庫設計（簡化版）
+-- ============================================
+
+-- 1. 分類表
+CREATE TABLE Pinkshop_Categories (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    Name NVARCHAR(50) NOT NULL,
+    DisplayOrder INT NOT NULL DEFAULT 0,
+    IsActive BIT NOT NULL DEFAULT 1,
+    CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
+    UpdatedAt DATETIME NULL
+);
+
+-- 2. 產品表
+CREATE TABLE Pinkshop_Products (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    CategoryId INT NOT NULL,
+    Name NVARCHAR(100) NOT NULL,
+    Description NVARCHAR(500) NULL,
+    ImageUrl NVARCHAR(500) NULL,
+    IsSpecial BIT NOT NULL DEFAULT 0,
+    IsActive BIT NOT NULL DEFAULT 1,
+    DisplayOrder INT NOT NULL DEFAULT 0,
+    CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
+    UpdatedAt DATETIME NULL,
+    FOREIGN KEY (CategoryId) REFERENCES Pinkshop_Categories(Id)
+);
+
+-- 3. 價格表
+CREATE TABLE Pinkshop_Prices (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    ProductId INT NOT NULL,
+    SizeName NVARCHAR(20) NOT NULL,
+    Price DECIMAL(10, 2) NOT NULL,
+    DisplayOrder INT NOT NULL DEFAULT 0,
+    IsActive BIT NOT NULL DEFAULT 1,
+    CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
+    UpdatedAt DATETIME NULL,
+    FOREIGN KEY (ProductId) REFERENCES Pinkshop_Products(Id) ON DELETE CASCADE
+);
+
+-- 4. 甜度表
+CREATE TABLE Pinkshop_SweetnessLevels (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    Name NVARCHAR(20) NOT NULL,
+    DisplayOrder INT NOT NULL DEFAULT 0,
+    IsActive BIT NOT NULL DEFAULT 1,
+    CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
+    UpdatedAt DATETIME NULL
+);
+
+-- 5. 冰度表
+CREATE TABLE Pinkshop_IceLevels (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    Name NVARCHAR(20) NOT NULL,
+    DisplayOrder INT NOT NULL DEFAULT 0,
+    IsActive BIT NOT NULL DEFAULT 1,
+    CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
+    UpdatedAt DATETIME NULL
+);
+
+-- 6. 訂單表（支援訪客訂單，並預留會員系統欄位）
+CREATE TABLE Pinkshop_Orders (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    OrderNumber NVARCHAR(50) NOT NULL UNIQUE,          -- 訂單編號（例如：ORD20250127001）
+    MemberId INT NULL,                                 -- 會員ID（預留給未來會員系統，訪客為NULL）
+    CustomerName NVARCHAR(100) NOT NULL,               -- 顧客姓名
+    CustomerPhone NVARCHAR(20) NOT NULL,               -- 顧客電話
+    CustomerAddress NVARCHAR(500) NULL,                -- 顧客地址（外送用）
+    Notes NVARCHAR(1000) NULL,                         -- 訂單備註
+    TotalAmount DECIMAL(10, 2) NOT NULL,               -- 訂單總金額
+    OrderStatus NVARCHAR(20) NOT NULL DEFAULT N'待處理', -- 訂單狀態：待處理、已確認、製作中、已完成、已取消
+    PaymentStatus NVARCHAR(20) NOT NULL DEFAULT N'未付款', -- 付款狀態：未付款、已付款
+    PaymentMethod NVARCHAR(50) NULL,                   -- 付款方式：現金、信用卡、行動支付等
+    CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),     -- 訂單建立時間
+    UpdatedAt DATETIME NULL,                           -- 更新時間
+    -- 未來會員系統啟用時，可加上外鍵約束
+    -- FOREIGN KEY (MemberId) REFERENCES Pinkshop_Members(Id)
+);
+
+-- 7. 訂單明細表
+CREATE TABLE Pinkshop_OrderDetails (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    OrderId INT NOT NULL,                              -- 訂單ID
+    ProductId INT NULL,                                -- 產品ID（可為NULL，因產品可能被刪除）
+    ProductName NVARCHAR(100) NOT NULL,                -- 產品名稱（冗餘儲存，避免產品刪除後無法顯示）
+    SizeName NVARCHAR(20) NOT NULL,                    -- 尺寸（中杯、大杯）
+    Quantity INT NOT NULL,                             -- 數量
+    UnitPrice DECIMAL(10, 2) NOT NULL,                 -- 單價
+    Subtotal DECIMAL(10, 2) NOT NULL,                  -- 小計（數量 × 單價）
+    SweetnessLevel NVARCHAR(20) NULL,                  -- 甜度（可選）
+    IceLevel NVARCHAR(20) NULL,                        -- 冰度（可選）
+    Notes NVARCHAR(500) NULL,                          -- 品項備註
+    CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
+    FOREIGN KEY (OrderId) REFERENCES Pinkshop_Orders(Id) ON DELETE CASCADE
+);
+
+-- ============================================
+-- 插入範例資料
+-- ============================================
+
+-- 分類
+INSERT INTO Pinkshop_Categories (Name, DisplayOrder) VALUES
+(N'烤奶系列', 1),
+(N'養生燉品', 2);
+
+-- 產品
+INSERT INTO Pinkshop_Products (CategoryId, Name, Description, IsSpecial, DisplayOrder) VALUES
+(1, N'圍爐奶茶', N'經典奶茶香氣濃郁', 0, 1),
+(1, N'重瓣玫瑰烤奶', N'芬芳玫瑰與奶香完美結合', 0, 2),
+(1, N'經典桂花烤奶', N'桂花香甜細緻', 0, 3),
+(1, N'頂級茉香烤奶', N'茉莉花香清新優雅', 0, 4),
+(1, N'馥郁薰衣草烤奶', N'薰衣草香氣舒緩放鬆', 0, 5),
+(2, N'桃膠雪燕燉奶', N'養顏美容聖品', 1, 1);
+
+-- 價格（中杯、大杯）
+INSERT INTO Pinkshop_Prices (ProductId, SizeName, Price, DisplayOrder) VALUES
+-- 圍爐奶茶
+(1, N'中杯', 70.00, 1),
+(1, N'大杯', 90.00, 2),
+-- 重瓣玫瑰烤奶
+(2, N'中杯', 90.00, 1),
+(2, N'大杯', 120.00, 2),
+-- 經典桂花烤奶
+(3, N'中杯', 90.00, 1),
+(3, N'大杯', 120.00, 2),
+-- 頂級茉香烤奶
+(4, N'中杯', 90.00, 1),
+(4, N'大杯', 120.00, 2),
+-- 馥郁薰衣草烤奶
+(5, N'中杯', 90.00, 1),
+(5, N'大杯', 120.00, 2),
+-- 桃膠雪燕燉奶
+(6, N'中杯', 120.00, 1),
+(6, N'大杯', 150.00, 2);
+
+-- 甜度選項
+INSERT INTO Pinkshop_SweetnessLevels (Name, DisplayOrder) VALUES
+(N'正常', 1),
+(N'少糖', 2),
+(N'微糖', 3),
+(N'無糖', 4);
+
+-- 冰度選項
+INSERT INTO Pinkshop_IceLevels (Name, DisplayOrder) VALUES
+(N'正常冰', 1),
+(N'少冰', 2),
+(N'微冰', 3),
+(N'去冰', 4),
+(N'溫', 5),
+(N'熱', 6);
+
+-- ============================================
+-- 常用查詢
+-- ============================================
+
+-- 查詢完整菜單
+SELECT 
+    c.Name AS 分類,
+    p.Name AS 品項,
+    pr.SizeName AS 杯型,
+    pr.Price AS 價格,
+    p.IsSpecial AS 特殊品項
+FROM Pinkshop_Products p
+INNER JOIN Pinkshop_Categories c ON p.CategoryId = c.Id
+INNER JOIN Pinkshop_Prices pr ON p.Id = pr.ProductId
+WHERE p.IsActive = 1 AND c.IsActive = 1 AND pr.IsActive = 1
+ORDER BY c.DisplayOrder, p.DisplayOrder, pr.DisplayOrder;
+
+-- 查詢特定產品的價格
+SELECT 
+    p.Name AS 品項,
+    pr.SizeName AS 杯型,
+    pr.Price AS 價格
+FROM Pinkshop_Products p
+INNER JOIN Pinkshop_Prices pr ON p.Id = pr.ProductId
+WHERE p.Id = 1 AND pr.IsActive = 1
+ORDER BY pr.DisplayOrder;
+
+-- 查詢甜度選項
+SELECT Id, Name
+FROM Pinkshop_SweetnessLevels
+WHERE IsActive = 1
+ORDER BY DisplayOrder;
+
+-- 查詢冰度選項
+SELECT Id, Name
+FROM Pinkshop_IceLevels
+WHERE IsActive = 1
+ORDER BY DisplayOrder;
+
+-- ============================================
+-- 訂單相關查詢
+-- ============================================
+
+-- 查詢訂單列表（含訂單明細）
+SELECT 
+    o.OrderNumber AS 訂單編號,
+    o.CustomerName AS 顧客姓名,
+    o.CustomerPhone AS 電話,
+    o.TotalAmount AS 總金額,
+    o.OrderStatus AS 訂單狀態,
+    o.PaymentStatus AS 付款狀態,
+    o.CreatedAt AS 訂單時間
+FROM Pinkshop_Orders o
+ORDER BY o.CreatedAt DESC;
+
+-- 查詢特定訂單的詳細資訊
+SELECT 
+    o.OrderNumber AS 訂單編號,
+    o.CustomerName AS 顧客姓名,
+    o.CustomerPhone AS 電話,
+    o.CustomerAddress AS 地址,
+    od.ProductName AS 品項,
+    od.SizeName AS 尺寸,
+    od.Quantity AS 數量,
+    od.UnitPrice AS 單價,
+    od.Subtotal AS 小計,
+    od.SweetnessLevel AS 甜度,
+    od.IceLevel AS 冰度
+FROM Pinkshop_Orders o
+INNER JOIN Pinkshop_OrderDetails od ON o.Id = od.OrderId
+WHERE o.OrderNumber = 'ORD20250127001';
+
+-- 查詢今日訂單統計
+SELECT 
+    COUNT(*) AS 訂單數量,
+    SUM(TotalAmount) AS 總營收
+FROM Pinkshop_Orders
+WHERE CAST(CreatedAt AS DATE) = CAST(GETDATE() AS DATE);
+
+-- ============================================
+-- 建立索引
+-- ============================================
+
+CREATE INDEX IX_Products_CategoryId ON Pinkshop_Products(CategoryId);
+CREATE INDEX IX_Prices_ProductId ON Pinkshop_Prices(ProductId);
+CREATE INDEX IX_Products_IsActive ON Pinkshop_Products(IsActive);
+CREATE INDEX IX_Prices_IsActive ON Pinkshop_Prices(IsActive);
+CREATE INDEX IX_Orders_OrderNumber ON Pinkshop_Orders(OrderNumber);
+CREATE INDEX IX_Orders_CreatedAt ON Pinkshop_Orders(CreatedAt);
+CREATE INDEX IX_Orders_MemberId ON Pinkshop_Orders(MemberId);
+CREATE INDEX IX_OrderDetails_OrderId ON Pinkshop_OrderDetails(OrderId);
