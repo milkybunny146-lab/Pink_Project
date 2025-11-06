@@ -10,7 +10,8 @@
       "Bash(git push:*)",
       "Bash(git log:*)",
       "Bash(cat:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(dotnet run:*)"
     ],
     "deny": [],
     "ask": []

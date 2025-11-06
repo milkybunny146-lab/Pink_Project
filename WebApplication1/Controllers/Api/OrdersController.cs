@@ -99,7 +99,7 @@ namespace WebApplication1.Controllers.Api
                             PaymentMethod = request.PaymentMethod,
                             DeliveryType = request.DeliveryType,
                             Notes = request.Notes,
-                            CreatedAt = DateTime.Now
+                            CreatedAt = DateTime.UtcNow
                         };
 
                         _context.Orders.Add(order);
@@ -110,15 +110,18 @@ namespace WebApplication1.Controllers.Api
                         // 創建訂單明細
                         foreach (var item in request.Items)
                         {
+                            _logger.LogInformation("處理訂單明細 - 產品: {ProductName}, 尺寸: {Size}, 數量: {Quantity}, 價格: {Price}",
+                                item.ProductName, item.Size, item.Quantity, item.Price);
+
                             var orderDetail = new OrderDetail
                             {
                                 OrderId = order.Id,
-                                ProductName = item.ProductName,
-                                SizeName = item.Size,
+                                ProductName = item.ProductName ?? "未知商品",
+                                SizeName = item.Size ?? "中杯",
                                 Quantity = item.Quantity,
                                 UnitPrice = item.Price,
                                 Subtotal = item.Price * item.Quantity,
-                                CreatedAt = DateTime.Now
+                                CreatedAt = DateTime.UtcNow
                             };
 
                             _context.OrderDetails.Add(orderDetail);
@@ -168,6 +171,11 @@ namespace WebApplication1.Controllers.Api
                     {
                         await transaction.RollbackAsync();
                         _logger.LogError(ex, "❌ 建立訂單失敗，交易已回滾");
+                        _logger.LogError("錯誤詳情: {Message}", ex.Message);
+                        if (ex.InnerException != null)
+                        {
+                            _logger.LogError("內部錯誤: {InnerMessage}", ex.InnerException.Message);
+                        }
                         throw;
                     }
                 }
@@ -175,10 +183,15 @@ namespace WebApplication1.Controllers.Api
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ CreateOrder 發生錯誤");
+                var errorMessage = ex.Message;
+                if (ex.InnerException != null)
+                {
+                    errorMessage += " | 內部錯誤: " + ex.InnerException.Message;
+                }
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "訂單建立失敗：" + ex.Message
+                    message = "訂單建立失敗：" + errorMessage
                 });
             }
         }
