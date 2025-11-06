@@ -540,69 +540,124 @@ document.addEventListener('DOMContentLoaded', function() {
     // 表單提交前驗證
     const checkoutForm = document.getElementById('checkoutForm');
     if (checkoutForm) {
-        checkoutForm.addEventListener('submit', function(e) {
+        checkoutForm.addEventListener('submit', async function(e) {
+            e.preventDefault(); // 阻止默認表單提交
+
             const customerName = document.getElementById('customerName').value.trim();
             const customerPhone = document.getElementById('customerPhone').value.trim();
             const customerEmail = document.getElementById('customerEmail').value.trim();
             const deliveryType = document.getElementById('deliveryType').value;
             const paymentMethod = document.getElementById('paymentMethod').value;
-            
+            const notes = document.getElementById('notes').value.trim();
+            const customerAddress = document.getElementById('customerAddress').value.trim();
+
             if (!customerName || !customerPhone || !customerEmail || !deliveryType || !paymentMethod) {
                 alert('請填寫必填欄位！');
-                e.preventDefault();
                 return false;
             }
-            
+
             // 驗證電話格式
             const phonePattern = /^[0-9]{10}$/;
             if (!phonePattern.test(customerPhone)) {
                 alert('請輸入正確的10位數手機號碼！');
-                e.preventDefault();
                 return false;
             }
-            
+
             // 驗證Email格式
             const emailPattern = /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/;
             if (!emailPattern.test(customerEmail)) {
                 alert('請輸入正確的Email格式！');
-                e.preventDefault();
                 return false;
             }
-            
+
             // 如果選擇外送，檢查地址是否填寫
             if (deliveryType === '外送') {
-                const address = document.getElementById('customerAddress').value.trim();
-                if (!address) {
+                if (!customerAddress) {
                     alert('請填寫外送地址！');
-                    e.preventDefault();
                     return false;
                 }
             }
-            
+
             // 確認訂單
             const cart = loadCart();
-            let confirmMsg = '確認送出訂單？\n\n';
-            
-            if (cart.length > 0) {
-                confirmMsg += '訂購商品：\n';
-                cart.forEach((item, index) => {
-                    confirmMsg += (index + 1) + '. ' + item.name + ' (' + item.size + ') x ' + item.quantity + ' 杯\n';
-                });
-                confirmMsg += '\n';
-            }
-            
-            confirmMsg += '取貨方式：' + deliveryType + '\n';
-            confirmMsg += '總金額：NT$ ' + document.getElementById('hiddenTotalAmount').value;
-            
-            if (!confirm(confirmMsg)) {
-                e.preventDefault();
+            if (cart.length === 0) {
+                alert('購物車是空的！');
                 return false;
             }
-            
-            // 提交成功後清空購物車
-            clearCart();
-            
-            return true;
+
+            let confirmMsg = '確認送出訂單？\n\n';
+            confirmMsg += '訂購商品：\n';
+            cart.forEach((item, index) => {
+                confirmMsg += (index + 1) + '. ' + item.name + ' (' + item.size + ') x ' + item.quantity + ' 杯\n';
+            });
+            confirmMsg += '\n';
+            confirmMsg += '取貨方式：' + deliveryType + '\n';
+            confirmMsg += '總金額：NT$ ' + getCartTotal();
+
+            if (!confirm(confirmMsg)) {
+                return false;
+            }
+
+            // 準備API請求數據
+            const orderData = {
+                customerName: customerName,
+                customerEmail: customerEmail,
+                customerPhone: customerPhone,
+                deliveryAddress: deliveryType === '外送' ? customerAddress : null,
+                deliveryType: deliveryType,
+                paymentMethod: paymentMethod,
+                notes: notes || null,
+                items: cart.map(item => ({
+                    productId: 0, // 可以設為0或省略
+                    productName: item.name,
+                    size: item.size,
+                    quantity: item.quantity,
+                    price: item.price,
+                    image: item.image
+                }))
+            };
+
+            console.log('送出訂單資料:', orderData);
+
+            // 顯示載入中
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 處理中...';
+
+            try {
+                // 調用API
+                const response = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(orderData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // 訂單建立成功
+                    console.log('訂單建立成功:', result);
+
+                    // 清空購物車
+                    clearCart();
+
+                    // 跳轉到訂單查詢頁面（使用訂單編號）
+                    window.location.href = '/Home/OrderConfirmation?orderNumber=' + result.orderNumber;
+                } else {
+                    // 訂單建立失敗
+                    alert('訂單建立失敗：' + (result.message || '未知錯誤'));
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnText;
+                }
+            } catch (error) {
+                console.error('訂單提交錯誤:', error);
+                alert('訂單提交失敗，請檢查網路連線或稍後再試。');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            }
         });
     }
     

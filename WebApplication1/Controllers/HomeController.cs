@@ -1,77 +1,127 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApplication1.Data;
+using WebApplication1.Models;
 
-var builder = WebApplication.CreateBuilder(args);
-
-// 添加服務到容器
-builder.Services.AddControllersWithViews();
-
-// ⭐ 關鍵：添加 API Controllers 支援
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
+namespace WebApplication1.Controllers
+{
+    public class HomeController : Controller
     {
-        // 設定 JSON 序列化選項（可選）
-        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-        options.JsonSerializerOptions.WriteIndented = true;
-    });
+        private readonly PinkshopDbContext _context;
+        private readonly ILogger<HomeController> _logger;
 
-// ⭐ 添加 CORS 支援（允許前端呼叫 API）
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
+        public HomeController(PinkshopDbContext context, ILogger<HomeController> logger)
+        {
+            _context = context;
+            _logger = logger;
+        }
 
-// 添加資料庫上下文
-builder.Services.AddDbContext<PinkshopDbContext>(options =>
-{
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-    options.UseNpgsql(connectionString);
-});
+        // GET: Home/Index
+        public IActionResult Index()
+        {
+            return View();
+        }
 
-// 添加 Logging
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
+        // GET: Home/Menu
+        public IActionResult Menu()
+        {
+            return View();
+        }
 
-var app = builder.Build();
+        // GET: Home/About
+        public IActionResult About()
+        {
+            return View();
+        }
 
-// 配置 HTTP 請求管道
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
+        // GET: Home/Contact
+        public IActionResult Contact()
+        {
+            return View();
+        }
+
+        // GET: Home/News
+        public IActionResult News()
+        {
+            return View();
+        }
+
+        // GET: Home/Cart
+        public IActionResult Cart(string item, int? mediumPrice, int? largePrice, string? image)
+        {
+            ViewData["ItemName"] = item ?? "圍爐奶茶";
+            ViewData["MediumPrice"] = mediumPrice?.ToString() ?? "70";
+            ViewData["LargePrice"] = largePrice?.ToString() ?? "90";
+            ViewData["ImageName"] = image ?? "orginal.jpg";
+
+            return View();
+        }
+
+        // GET: Home/OrderConfirmation
+        public async Task<IActionResult> OrderConfirmation(string orderNumber)
+        {
+            if (string.IsNullOrEmpty(orderNumber))
+            {
+                return BadRequest("訂單編號不能為空");
+            }
+
+            try
+            {
+                // 從資料庫查詢訂單
+                var order = await _context.Orders
+                    .Include(o => o.OrderDetails)
+                    .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
+
+                if (order == null)
+                {
+                    return NotFound("找不到訂單");
+                }
+
+                // 準備訂單資訊傳給View
+                var orderInfo = new Dictionary<string, object>
+                {
+                    ["OrderNumber"] = order.OrderNumber,
+                    ["CustomerName"] = order.CustomerName,
+                    ["CustomerPhone"] = order.CustomerPhone,
+                    ["CustomerEmail"] = order.CustomerEmail ?? "",
+                    ["CustomerAddress"] = order.CustomerAddress ?? "",
+                    ["DeliveryType"] = order.DeliveryType ?? "自取",
+                    ["Notes"] = order.Notes ?? "",
+                    ["TotalAmount"] = order.TotalAmount,
+                    ["OrderStatus"] = order.OrderStatus,
+                    ["PaymentStatus"] = order.PaymentStatus,
+                    ["PaymentMethod"] = order.PaymentMethod ?? "貨到付款",
+                    ["CreatedAt"] = order.CreatedAt,
+                    ["OrderDetails"] = order.OrderDetails.Select(od => new Dictionary<string, object>
+                    {
+                        ["ProductName"] = od.ProductName,
+                        ["SizeName"] = od.SizeName ?? "",
+                        ["Quantity"] = od.Quantity,
+                        ["UnitPrice"] = od.UnitPrice,
+                        ["Subtotal"] = od.Subtotal
+                    }).ToList()
+                };
+
+                ViewData["OrderInfo"] = orderInfo;
+                return View();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "查詢訂單失敗: {OrderNumber}", orderNumber);
+                return StatusCode(500, "查詢訂單時發生錯誤");
+            }
+        }
+
+        // GET: Home/Privacy
+        public IActionResult Privacy()
+        {
+            return View();
+        }
+
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult Error()
+        {
+            return View();
+        }
+    }
 }
-
-// ⭐ 使用 CORS（必須在 UseRouting 之前）
-app.UseCors("AllowAll");
-
-app.UseHttpsRedirection();
-app.UseStaticFiles();
-
-app.UseRouting();
-
-app.UseAuthorization();
-
-// ⭐ 映射 MVC Controllers（用於網頁）
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
-
-// ⭐ 映射 API Controllers（用於 API 端點）
-app.MapControllers();
-
-// 輸出啟動資訊
-app.Logger.LogInformation("=== 品渴茶鋪 Web API 已啟動 ===");
-app.Logger.LogInformation("環境: {Environment}", app.Environment.EnvironmentName);
-app.Logger.LogInformation("API 端點已啟用：");
-app.Logger.LogInformation("  - GET  /api/products");
-app.Logger.LogInformation("  - GET  /api/products/{id}");
-app.Logger.LogInformation("  - POST /api/orders");
-app.Logger.LogInformation("  - GET  /api/orders/{orderNumber}");
-
-app.Run();

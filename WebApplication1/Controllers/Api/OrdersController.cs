@@ -131,25 +131,30 @@ namespace WebApplication1.Controllers.Api
                         await transaction.CommitAsync();
                         _logger.LogInformation("✅ 交易已提交");
 
-                        // 發送確認郵件
-                        try
+                        // 在背景發送確認郵件（不阻塞響應）
+                        _ = Task.Run(async () =>
                         {
-                            await SendOrderConfirmationEmail(
-                                request.CustomerEmail,
-                                request.CustomerName,
-                                orderNumber,
-                                request.Items,
-                                totalAmount,
-                                request.DeliveryType,
-                                request.DeliveryAddress ?? ""
-                            );
-                            _logger.LogInformation("✅ 確認郵件已發送");
-                        }
-                        catch (Exception emailEx)
-                        {
-                            _logger.LogError(emailEx, "❌ 發送郵件失敗（但訂單已建立）");
-                            // 郵件失敗不影響訂單建立
-                        }
+                            try
+                            {
+                                await SendOrderConfirmationEmail(
+                                    request.CustomerEmail,
+                                    request.CustomerName,
+                                    orderNumber,
+                                    request.Items,
+                                    totalAmount,
+                                    request.DeliveryType,
+                                    request.DeliveryAddress ?? ""
+                                );
+                                _logger.LogInformation("✅ 確認郵件已發送");
+                            }
+                            catch (Exception emailEx)
+                            {
+                                _logger.LogError(emailEx, "❌ 發送郵件失敗（但訂單已建立）");
+                                // 郵件失敗不影響訂單建立
+                            }
+                        });
+
+                        _logger.LogInformation("✅ 訂單建立成功，Email將在背景發送");
 
                         return Ok(new
                         {
@@ -311,6 +316,7 @@ namespace WebApplication1.Controllers.Api
                         smtp.Port = smtpPort;
                         smtp.EnableSsl = enableSsl;
                         smtp.Credentials = new NetworkCredential(username, password);
+                        smtp.Timeout = 10000; // 10秒超時
 
                         await Task.Run(() => smtp.Send(mail));
                     }
