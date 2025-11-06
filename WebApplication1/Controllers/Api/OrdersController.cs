@@ -222,7 +222,7 @@ namespace WebApplication1.Controllers.Api
         {
             try
             {
-                _logger.LogInformation("📧 開始發送訂單確認郵件...");
+                _logger.LogInformation("📧 開始發送訂單確認郵件到: {Email}", toEmail);
 
                 // 建立商品列表 HTML
                 var productsHtml = string.Join("", items.Select(item => $@"
@@ -311,7 +311,16 @@ namespace WebApplication1.Controllers.Api
                 var username = _configuration["EmailSettings:Username"];
                 var password = _configuration["EmailSettings:Password"];
 
-                _logger.LogInformation("SMTP: {Host}:{Port}, SSL: {Ssl}", smtpHost, smtpPort, enableSsl);
+                _logger.LogInformation("📧 SMTP設定 - Host: {Host}, Port: {Port}, SSL: {Ssl}, 發件人: {Sender}",
+                    smtpHost, smtpPort, enableSsl, senderEmail);
+
+                // 檢查必要設定
+                if (string.IsNullOrEmpty(smtpHost) || string.IsNullOrEmpty(senderEmail) ||
+                    string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+                {
+                    _logger.LogError("❌ Email設定不完整，無法發送郵件");
+                    throw new InvalidOperationException("Email設定不完整");
+                }
 
                 // 建立郵件
                 using (MailMessage mail = new MailMessage())
@@ -329,17 +338,33 @@ namespace WebApplication1.Controllers.Api
                         smtp.Port = smtpPort;
                         smtp.EnableSsl = enableSsl;
                         smtp.Credentials = new NetworkCredential(username, password);
-                        smtp.Timeout = 10000; // 10秒超時
+                        smtp.Timeout = 30000; // 30秒超時（增加超時時間）
 
+                        _logger.LogInformation("📧 開始連接SMTP伺服器並發送郵件...");
                         await Task.Run(() => smtp.Send(mail));
+                        _logger.LogInformation("✅ 郵件已成功發送到SMTP伺服器");
                     }
                 }
 
-                _logger.LogInformation("✅ 郵件發送成功");
+                _logger.LogInformation("✅ 郵件發送完成");
+            }
+            catch (System.Net.Mail.SmtpException smtpEx)
+            {
+                _logger.LogError(smtpEx, "❌ SMTP發送失敗 - StatusCode: {StatusCode}, Message: {Message}",
+                    smtpEx.StatusCode, smtpEx.Message);
+                if (smtpEx.InnerException != null)
+                {
+                    _logger.LogError("SMTP內部錯誤: {InnerMessage}", smtpEx.InnerException.Message);
+                }
+                throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ 發送郵件失敗");
+                _logger.LogError(ex, "❌ 發送郵件失敗 - {Message}", ex.Message);
+                if (ex.InnerException != null)
+                {
+                    _logger.LogError("內部錯誤: {InnerMessage}", ex.InnerException.Message);
+                }
                 throw;
             }
         }
