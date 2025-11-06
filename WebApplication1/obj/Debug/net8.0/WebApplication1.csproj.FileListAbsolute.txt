@@ -667,3 +667,7 @@ C:\Users\User\Documents\GitHub\Pink_Project\WebApplication1\obj\Debug\net8.0\ref
 C:\Users\User\Documents\GitHub\Pink_Project\WebApplication1\obj\Debug\net8.0\WebApplication1.pdb
 C:\Users\User\Documents\GitHub\Pink_Project\WebApplication1\obj\Debug\net8.0\WebApplication1.genruntimeconfig.cache
 C:\Users\User\Documents\GitHub\Pink_Project\WebApplication1\obj\Debug\net8.0\ref\WebApplication1.dll
+C:\Users\User\Documents\GitHub\Pink_Project\WebApplication1\bin\Debug\net8.0\wwwroot\test-email.html
+C:\Users\User\Documents\GitHub\Pink_Project\WebApplication1\bin\Debug\net8.0\Newtonsoft.Json.dll
+C:\Users\User\Documents\GitHub\Pink_Project\WebApplication1\bin\Debug\net8.0\SendGrid.dll
+C:\Users\User\Documents\GitHub\Pink_Project\WebApplication1\bin\Debug\net8.0\StarkbankEcdsa.dll

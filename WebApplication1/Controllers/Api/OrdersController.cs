@@ -5,6 +5,8 @@ using System.Net.Mail;
 using System.Text.Json;
 using WebApplication1.Data;
 using WebApplication1.Models;
+using SendGrid;
+using SendGrid.Helpers.Mail;
 
 namespace WebApplication1.Controllers.Api
 {
@@ -303,46 +305,88 @@ namespace WebApplication1.Controllers.Api
 </html>";
 
                 // 讀取 Email 設定
-                var smtpHost = _configuration["EmailSettings:SmtpHost"];
-                var smtpPort = int.Parse(_configuration["EmailSettings:SmtpPort"] ?? "587");
-                var enableSsl = bool.Parse(_configuration["EmailSettings:EnableSsl"] ?? "true");
+                var useSendGrid = bool.Parse(_configuration["EmailSettings:UseSendGrid"] ?? "false");
                 var senderEmail = _configuration["EmailSettings:SenderEmail"];
                 var senderName = _configuration["EmailSettings:SenderName"];
-                var username = _configuration["EmailSettings:Username"];
-                var password = _configuration["EmailSettings:Password"];
 
-                _logger.LogInformation("📧 SMTP設定 - Host: {Host}, Port: {Port}, SSL: {Ssl}, 發件人: {Sender}",
-                    smtpHost, smtpPort, enableSsl, senderEmail);
-
-                // 檢查必要設定
-                if (string.IsNullOrEmpty(smtpHost) || string.IsNullOrEmpty(senderEmail) ||
-                    string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+                if (string.IsNullOrEmpty(senderEmail))
                 {
-                    _logger.LogError("❌ Email設定不完整，無法發送郵件");
+                    _logger.LogError("❌ Email設定不完整，缺少發件人Email");
                     throw new InvalidOperationException("Email設定不完整");
                 }
 
-                // 建立郵件
-                using (MailMessage mail = new MailMessage())
+                if (useSendGrid)
                 {
-                    mail.From = new MailAddress(senderEmail ?? "", senderName);
-                    mail.To.Add(toEmail);
-                    mail.Subject = subject;
-                    mail.Body = body;
-                    mail.IsBodyHtml = true;
+                    // 使用 SendGrid API
+                    var apiKey = _configuration["EmailSettings:SendGridApiKey"]
+                                 ?? Environment.GetEnvironmentVariable("SENDGRID_API_KEY");
 
-                    // SMTP 設定
-                    using (SmtpClient smtp = new SmtpClient())
+                    if (string.IsNullOrEmpty(apiKey) || apiKey == "YOUR_SENDGRID_API_KEY_HERE")
                     {
-                        smtp.Host = smtpHost ?? "smtp.gmail.com";
-                        smtp.Port = smtpPort;
-                        smtp.EnableSsl = enableSsl;
-                        smtp.Credentials = new NetworkCredential(username, password);
-                        smtp.Timeout = 30000; // 30秒超時（增加超時時間）
+                        _logger.LogError("❌ SendGrid API Key 未設定");
+                        throw new InvalidOperationException("SendGrid API Key 未設定");
+                    }
 
-                        _logger.LogInformation("📧 開始連接SMTP伺服器並發送郵件...");
-                        await Task.Run(() => smtp.Send(mail));
-                        _logger.LogInformation("✅ 郵件已成功發送到SMTP伺服器");
+                    _logger.LogInformation("📧 使用SendGrid發送郵件 - 發件人: {Sender}", senderEmail);
+
+                    var client = new SendGridClient(apiKey);
+                    var from = new EmailAddress(senderEmail, senderName);
+                    var to = new EmailAddress(toEmail);
+                    var msg = MailHelper.CreateSingleEmail(from, to, subject, body, body);
+
+                    _logger.LogInformation("📧 開始透過SendGrid發送郵件...");
+                    var response = await client.SendEmailAsync(msg);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        _logger.LogInformation("✅ SendGrid郵件發送成功 - StatusCode: {StatusCode}", response.StatusCode);
+                    }
+                    else
+                    {
+                        var responseBody = await response.Body.ReadAsStringAsync();
+                        _logger.LogError("❌ SendGrid發送失敗 - StatusCode: {StatusCode}, Response: {Response}",
+                            response.StatusCode, responseBody);
+                        throw new Exception($"SendGrid發送失敗: {response.StatusCode}");
+                    }
+                }
+                else
+                {
+                    // 使用傳統 SMTP
+                    var smtpHost = _configuration["EmailSettings:SmtpHost"];
+                    var smtpPort = int.Parse(_configuration["EmailSettings:SmtpPort"] ?? "587");
+                    var enableSsl = bool.Parse(_configuration["EmailSettings:EnableSsl"] ?? "true");
+                    var username = _configuration["EmailSettings:Username"];
+                    var password = _configuration["EmailSettings:Password"];
+
+                    _logger.LogInformation("📧 使用SMTP發送郵件 - Host: {Host}, Port: {Port}, 發件人: {Sender}",
+                        smtpHost, smtpPort, senderEmail);
+
+                    if (string.IsNullOrEmpty(smtpHost) || string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+                    {
+                        _logger.LogError("❌ SMTP設定不完整");
+                        throw new InvalidOperationException("SMTP設定不完整");
+                    }
+
+                    using (MailMessage mail = new MailMessage())
+                    {
+                        mail.From = new MailAddress(senderEmail, senderName);
+                        mail.To.Add(toEmail);
+                        mail.Subject = subject;
+                        mail.Body = body;
+                        mail.IsBodyHtml = true;
+
+                        using (SmtpClient smtp = new SmtpClient())
+                        {
+                            smtp.Host = smtpHost;
+                            smtp.Port = smtpPort;
+                            smtp.EnableSsl = enableSsl;
+                            smtp.Credentials = new NetworkCredential(username, password);
+                            smtp.Timeout = 30000;
+
+                            _logger.LogInformation("📧 開始連接SMTP伺服器並發送郵件...");
+                            await Task.Run(() => smtp.Send(mail));
+                            _logger.LogInformation("✅ SMTP郵件發送成功");
+                        }
                     }
                 }
 
@@ -367,6 +411,54 @@ namespace WebApplication1.Controllers.Api
                 }
                 throw;
             }
+        }
+
+        // POST api/orders/test-email - 測試Email發送
+        [HttpPost("test-email")]
+        public async Task<IActionResult> TestEmail([FromBody] TestEmailRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("📧 測試Email發送到: {Email}", request.Email);
+
+                var testItems = new List<OrderItemDto>
+                {
+                    new OrderItemDto
+                    {
+                        ProductName = "測試商品",
+                        Size = "中杯",
+                        Quantity = 1,
+                        Price = 70
+                    }
+                };
+
+                await SendOrderConfirmationEmail(
+                    request.Email,
+                    "測試客戶",
+                    "TEST" + DateTime.Now.ToString("yyyyMMddHHmmss"),
+                    testItems,
+                    70,
+                    "自取",
+                    ""
+                );
+
+                return Ok(new { success = true, message = "測試郵件已發送" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "測試郵件發送失敗");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "測試郵件發送失敗: " + ex.Message,
+                    details = ex.InnerException?.Message
+                });
+            }
+        }
+
+        public class TestEmailRequest
+        {
+            public string Email { get; set; } = string.Empty;
         }
 
         // GET api/orders/{orderNumber}

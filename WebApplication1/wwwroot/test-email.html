@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>測試Email發送</title>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #FF69B4;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #FF69B4, #FF1493);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button:hover {
+            background: linear-gradient(135deg, #FF1493, #C71585);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📧 測試Email發送</h1>
+
+        <div class="form-group">
+            <label for="email">收件Email地址：</label>
+            <input type="email" id="email" value="milkybunny146@gmail.com" placeholder="輸入Email地址">
+        </div>
+
+        <button id="testBtn" onclick="testEmail()">發送測試郵件</button>
+
+        <div id="result" class="result"></div>
+
+        <div id="log"></div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString('zh-TW');
+            logDiv.innerHTML += `[${time}] ${message}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function testEmail() {
+            const email = document.getElementById('email').value;
+            const button = document.getElementById('testBtn');
+            const resultDiv = document.getElementById('result');
+
+            if (!email) {
+                alert('請輸入Email地址');
+                return;
+            }
+
+            // 清空之前的結果
+            resultDiv.style.display = 'none';
+            resultDiv.className = 'result';
+
+            // 禁用按鈕
+            button.disabled = true;
+            button.textContent = '發送中...';
+
+            log('開始測試Email發送到: ' + email);
+
+            try {
+                log('正在調用API: POST /api/orders/test-email');
+
+                const response = await fetch('/api/orders/test-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email: email })
+                });
+
+                log('收到響應，狀態碼: ' + response.status);
+
+                const data = await response.json();
+                log('響應數據: ' + JSON.stringify(data, null, 2));
+
+                if (response.ok && data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = '✅ ' + data.message + '<br>請檢查信箱（也查看垃圾郵件資料夾）';
+                    log('✅ 成功: ' + data.message);
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = '❌ 發送失敗<br>錯誤: ' + (data.message || '未知錯誤');
+                    if (data.details) {
+                        resultDiv.innerHTML += '<br>詳情: ' + data.details;
+                    }
+                    log('❌ 失敗: ' + (data.message || '未知錯誤'));
+                    if (data.details) {
+                        log('詳情: ' + data.details);
+                    }
+                }
+
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                log('❌ 發生錯誤: ' + error.message);
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '❌ 請求失敗<br>錯誤: ' + error.message;
+                resultDiv.style.display = 'block';
+            } finally {
+                button.disabled = false;
+                button.textContent = '發送測試郵件';
+            }
+        }
+
+        log('測試頁面已載入');
+    </script>
+</body>
+</html>
