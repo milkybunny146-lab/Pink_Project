@@ -18,6 +18,7 @@ RUN dotnet publish "WebApplication1.csproj" -c Release -o /app/publish /p:UseApp
 # 使用 ASP.NET Core runtime 作為最終映像
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
-EXPOSE 8080
+EXPOSE 80
+ENV ASPNETCORE_URLS=http://+:80
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "WebApplication1.dll"]

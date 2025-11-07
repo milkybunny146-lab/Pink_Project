@@ -11,7 +11,11 @@
       "Bash(git log:*)",
       "Bash(cat:*)",
       "Bash(dir:*)",
-      "Bash(dotnet run:*)"
+      "Bash(dotnet run:*)",
+      "Bash(mkdir:*)",
+      "Bash(eb init:*)",
+      "Bash(where:*)",
+      "Bash(pip --version:*)"
     ],
     "deny": [],
     "ask": []
