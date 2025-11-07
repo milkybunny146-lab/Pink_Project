@@ -15,7 +15,12 @@
       "Bash(mkdir:*)",
       "Bash(eb init:*)",
       "Bash(where:*)",
-      "Bash(pip --version:*)"
+      "Bash(pip --version:*)",
+      "Bash(dotnet --version:*)",
+      "Bash(dotnet restore:*)",
+      "Bash(dotnet publish:*)",
+      "Bash(Select-String -Pattern \"\\.dll$|\\.exe$|\\.runtimeconfig\\.json$\")",
+      "Bash(Select-Object -First 5)"
     ],
     "deny": [],
     "ask": []

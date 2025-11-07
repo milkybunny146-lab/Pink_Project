@@ -60,7 +60,7 @@ dotnet publish -c Release -o publish
 在「平台」（Platform）區段：
 
 1. **平台（Platform）**：選擇 **「.NET Core on Linux」**
-2. **平台分支（Platform branch）**：選擇最新版本（通常是 .NET 8）
+2. **平台分支（Platform branch）**：選擇最新版本（**.NET 9**）
 3. **平台版本（Platform version）**：選擇推薦版本
 
 ---
